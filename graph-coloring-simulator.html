@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Graph Coloring Simulator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      color: #222;
+      display: flex;
+      flex-direction: column;
+    }
+
+    h1 {
+      text-align: center;
+      padding: 10px;
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #111;
+    }
+
+    #layout {
+      display: flex;
+      gap: 16px;
+      padding: 0 20px 20px;
+      height: calc(100% - 52px);
+    }
+
+    #canvas-card {
+      flex: 1;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    canvas {
+      display: block;
+      cursor: crosshair;
+    }
+
+    #canvas-hint {
+      position: absolute;
+      bottom: 10px;
+      left: 12px;
+      font-size: 0.75rem;
+      color: #888;
+    }
+
+    #panel {
+      width: 250px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .card h3 {
+      font-size: 1rem;
+      margin-bottom: 12px;
+      color: #111;
+    }
+
+    .card label {
+      display: block;
+      font-size: 0.8rem;
+      color: #555;
+      margin-bottom: 4px;
+    }
+
+    .card select {
+      width: 100%;
+      padding: 7px 10px;
+      font-size: 0.82rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background: white;
+      margin-bottom: 10px;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 9px;
+      font-size: 0.85rem;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      margin-bottom: 8px;
+      background: #f5f5f5;
+      color: #222;
+      text-align: center;
+    }
+
+    .btn:hover { background: #e8e8e8; }
+
+    .btn.green {
+      background: #27ae60;
+      color: white;
+      border-color: #27ae60;
+      font-weight: bold;
+    }
+    .btn.green:hover { background: #219150; }
+
+    .btn.red {
+      background: #e74c3c;
+      color: white;
+      border-color: #e74c3c;
+    }
+    .btn.red:hover { background: #c0392b; }
+
+    .mode-btns {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .mode-btns button {
+      flex: 1;
+      padding: 7px 4px;
+      font-size: 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background: #f5f5f5;
+      cursor: pointer;
+    }
+    .mode-btns button:hover { background: #e8e8e8; }
+    .mode-btns button.active {
+      background: #333;
+      color: white;
+      border-color: #333;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 0.85rem;
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-row span:last-child { font-weight: bold; }
+
+    .info-box {
+      background: #f0f6ff;
+      border: 1px solid #c8dcf8;
+      border-radius: 5px;
+      padding: 10px;
+      font-size: 0.78rem;
+      color: #334;
+      line-height: 1.5;
+    }
+
+    #stepInfo {
+      background: #fffbea;
+      border: 1px solid #f0d060;
+      border-radius: 5px;
+      padding: 10px;
+      font-size: 0.78rem;
+      color: #443;
+      line-height: 1.5;
+      display: none;
+    }
+
+    #stepCounter {
+      font-size: 0.75rem;
+      color: #888;
+      text-align: center;
+      margin-bottom: 6px;
+      display: none;
+    }
+
+  </style>
+</head>
+<body>
+
+<h1>Graph Coloring Simulator</h1>
+
+<div id="layout">
+
+  <div id="canvas-card">
+    <canvas id="canvas"></canvas>
+    <div id="canvas-hint">Click to add a node. Right-click any node or edge to delete it.</div>
+  </div>
+
+  <div id="panel">
+
+    <div class="card">
+      <h3>Controls</h3>
+
+      <label>Load Example</label>
+      <select id="preset" onchange="loadPreset(this.value)">
+        <option value="">Select Example</option>
+        <option value="triangle">Triangle (3 nodes)</option>
+        <option value="square">Square (4 nodes)</option>
+        <option value="k4">Complete Graph K4</option>
+        <option value="star">Star Graph</option>
+      </select>
+
+      <div class="mode-btns">
+        <button id="btnNode" class="active" onclick="setMode('node')">Add Node</button>
+        <button id="btnEdge" onclick="setMode('edge')">Add Edge</button>
+        <button id="btnDel"  onclick="setMode('del')">Delete</button>
+      </div>
+
+      <label>Algorithm</label>
+      <select id="algo" onchange="updateAlgoInfo()">
+        <option value="greedy">Greedy</option>
+        <option value="bt">Backtracking</option>
+      </select>
+
+      <button class="btn green" onclick="colorGraph()">Color Graph</button>
+
+      <div id="stepCounter"></div>
+      <button class="btn" onclick="nextStep()">Next Step &nbsp;<small style="color:#aaa">Space</small></button>
+
+      <button class="btn red" style="margin-top:2px" onclick="clearAll()">Clear Graph</button>
+    </div>
+
+    <div class="card">
+      <h3>Graph Info</h3>
+      <div class="stat-row"><span>Chromatic Number χ(G):</span><span id="sChrom">N/A</span></div>
+      <div class="stat-row"><span>Vertices:</span><span id="sVerts">0</span></div>
+      <div class="stat-row"><span>Edges:</span><span id="sEdges">0</span></div>
+    </div>
+
+    <div id="stepInfo"></div>
+
+    <div class="info-box" id="algoInfo"></div>
+
+  </div>
+</div>
+
+<script>
+
+const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e91e63', '#ff5722'];
+const NODE_RADIUS = 22;
+
+let nodes = [];
+let edges = [];
+let nodeIdCounter = 0;
+
+let mode = 'node';
+let selectedNode = null;
+let draggingNode = null;
+let mouseX = 0, mouseY = 0;
+
+let stepQueue = [];
+let stepIndex = 0;
+let finalColoring = {};
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const card = document.getElementById('canvas-card');
+  canvas.width  = card.clientWidth;
+  canvas.height = card.clientHeight;
+  draw();
+}
+window.addEventListener('resize', resizeCanvas);
+setTimeout(resizeCanvas, 50);
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  edges.forEach(edge => {
+    const a = getNode(edge.a);
+    const b = getNode(edge.b);
+    if (!a || !b) return;
+
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = (a.color !== null && a.color === b.color) ? '#e74c3c' : '#999';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  });
+
+  if (mode === 'edge' && selectedNode !== null) {
+    const n = getNode(selectedNode);
+    ctx.beginPath();
+    ctx.moveTo(n.x, n.y);
+    ctx.lineTo(mouseX, mouseY);
+    ctx.strokeStyle = '#bbb';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  nodes.forEach(node => {
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, NODE_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = node.color !== null ? COLORS[node.color % COLORS.length] : '#fff';
+    ctx.fill();
+    ctx.strokeStyle = node.id === selectedNode ? '#222' : '#999';
+    ctx.lineWidth = node.id === selectedNode ? 2.5 : 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = node.color !== null ? '#fff' : '#333';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(node.label, node.x, node.y);
+  });
+}
+
+canvas.addEventListener('mousemove', e => {
+  mouseX = e.offsetX;
+  mouseY = e.offsetY;
+  if (draggingNode) {
+    draggingNode.x = mouseX;
+    draggingNode.y = mouseY;
+    updateStats();
+    draw();
+  } else if (mode === 'edge' && selectedNode !== null) {
+    draw();
+  }
+});
+
+canvas.addEventListener('mousedown', e => {
+  const x = e.offsetX, y = e.offsetY;
+  const hit = nodes.find(n => Math.hypot(n.x - x, n.y - y) <= NODE_RADIUS + 3) || null;
+
+  if (mode === 'node') {
+    if (!hit) {
+      nodes.push({ id: nodeIdCounter++, x, y, color: null, label: String.fromCharCode(65 + nodes.length % 26) });
+      updateStats();
+    } else {
+      draggingNode = hit;
+    }
+    draw();
+    return;
+  }
+
+  if (mode === 'edge') {
+    if (!hit) { selectedNode = null; draw(); return; }
+    if (selectedNode === null) { selectedNode = hit.id; draw(); return; }
+    if (selectedNode === hit.id) { selectedNode = null; draw(); return; }
+    if (!edgeExists(selectedNode, hit.id)) {
+      edges.push({ a: selectedNode, b: hit.id });
+      updateStats();
+    }
+    selectedNode = null;
+    draw();
+    return;
+  }
+
+  if (mode === 'del') {
+    if (hit) {
+      edges = edges.filter(e => e.a !== hit.id && e.b !== hit.id);
+      nodes = nodes.filter(n => n.id !== hit.id);
+    } else {
+      const target = edges.find(e => {
+        const a = getNode(e.a), b = getNode(e.b);
+        return a && b && distToSegment(x, y, a.x, a.y, b.x, b.y) < 7;
+      });
+      if (target) edges = edges.filter(e => e !== target);
+    }
+    updateStats();
+    draw();
+  }
+});
+
+canvas.addEventListener('mouseup', () => { draggingNode = null; });
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const x = e.offsetX, y = e.offsetY;
+  const hit = nodes.find(n => Math.hypot(n.x - x, n.y - y) <= NODE_RADIUS + 3);
+  if (hit) {
+    edges = edges.filter(e => e.a !== hit.id && e.b !== hit.id);
+    nodes = nodes.filter(n => n.id !== hit.id);
+  } else {
+    const target = edges.find(e => {
+      const a = getNode(e.a), b = getNode(e.b);
+      return a && b && distToSegment(x, y, a.x, a.y, b.x, b.y) < 7;
+    });
+    if (target) edges = edges.filter(e => e !== target);
+  }
+  updateStats();
+  draw();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && e.target === document.body) {
+    e.preventDefault();
+    nextStep();
+  }
+});
+
+function getNode(id) {
+  return nodes.find(n => n.id === id) || null;
+}
+
+function edgeExists(a, b) {
+  return edges.some(e => (e.a === a && e.b === b) || (e.a === b && e.b === a));
+}
+
+function getNeighbors(nodeId) {
+  return edges
+    .filter(e => e.a === nodeId || e.b === nodeId)
+    .map(e => e.a === nodeId ? e.b : e.a);
+}
+
+function getDegree(nodeId) {
+  return getNeighbors(nodeId).length;
+}
+
+function distToSegment(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  if (!dx && !dy) return Math.hypot(px - ax, py - ay);
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+function setMode(m) {
+  mode = m;
+  selectedNode = null;
+  draggingNode = null;
+  ['btnNode', 'btnEdge', 'btnDel'].forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById({ node: 'btnNode', edge: 'btnEdge', del: 'btnDel' }[m]).classList.add('active');
+  const hints = {
+    node: 'Click empty space to add a node. Drag a node to move it. Right-click to delete.',
+    edge: 'Click a node, then click another to connect them. Right-click to delete.',
+    del:  'Click a node or edge to delete it. You can also right-click anywhere.'
+  };
+  document.getElementById('canvas-hint').textContent = hints[m];
+  draw();
+}
+
+function updateStats() {
+  document.getElementById('sVerts').textContent = nodes.length;
+  document.getElementById('sEdges').textContent = edges.length;
+}
+
+function runGreedy() {
+  const sorted = [...nodes].sort((a, b) => getDegree(b.id) - getDegree(a.id));
+  const coloring = {};
+  const steps = [];
+
+  sorted.forEach(node => {
+    const neighborColors = new Set(
+      getNeighbors(node.id).map(id => coloring[id]).filter(c => c !== undefined)
+    );
+    let color = 0;
+    while (neighborColors.has(color)) color++;
+    coloring[node.id] = color;
+    const used = [...neighborColors].map(c => c + 1).join(', ');
+    steps.push({
+      nodeId: node.id,
+      color,
+      msg: neighborColors.size === 0
+        ? `Node ${node.label} has no colored neighbors yet → give it Color ${color + 1}`
+        : `Node ${node.label}'s neighbors already use Color${neighborColors.size > 1 ? 's' : ''} ${used} → give it Color ${color + 1}`
+    });
+  });
+
+  return { steps, coloring };
+}
+
+function runBacktracking() {
+  const nodeList = [...nodes];
+  const colorAssigned = new Array(nodeList.length).fill(-1);
+  const steps = [];
+
+  function isSafe(vertexIndex, color) {
+    return getNeighbors(nodeList[vertexIndex].id).every(neighborId => {
+      const i = nodeList.findIndex(n => n.id === neighborId);
+      return colorAssigned[i] !== color;
+    });
+  }
+
+  function solve(vertexIndex, k) {
+    if (vertexIndex === nodeList.length) return true;
+    for (let color = 0; color < k; color++) {
+      if (isSafe(vertexIndex, color)) {
+        colorAssigned[vertexIndex] = color;
+        steps.push({ nodeId: nodeList[vertexIndex].id, color, msg: `Try Color ${color + 1} for node ${nodeList[vertexIndex].label}` });
+        if (solve(vertexIndex + 1, k)) return true;
+        colorAssigned[vertexIndex] = -1;
+        steps.push({ nodeId: nodeList[vertexIndex].id, color: null, msg: `Color ${color + 1} caused a conflict at node ${nodeList[vertexIndex].label} — backtrack and try next color` });
+      }
+    }
+    return false;
+  }
+
+  for (let k = 1; k <= nodeList.length; k++) {
+    colorAssigned.fill(-1);
+    steps.push({ msg: `Can we color this graph using only ${k} color${k > 1 ? 's' : ''}? Let's try...` });
+    if (solve(0, k)) {
+      const coloring = {};
+      nodeList.forEach((node, i) => coloring[node.id] = colorAssigned[i]);
+      steps.push({ msg: `Yes! ${k} colors are enough. Minimum colors needed = ${k}` });
+      return { steps, coloring, k };
+    }
+    nodes.forEach(n => n.color = null);
+    steps.push({ clearAll: true, msg: `${k} color${k > 1 ? 's' : ''} not enough — no valid coloring found. Trying ${k + 1}...` });
+  }
+
+  return { steps, coloring: {}, k: 0 };
+}
+
+function colorGraph() {
+  if (!nodes.length) return;
+  nodes.forEach(n => n.color = null);
+  stepQueue = [];
+  stepIndex = 0;
+  finalColoring = {};
+  document.getElementById('stepInfo').style.display = 'none';
+  document.getElementById('stepCounter').style.display = 'none';
+
+  const algo = document.getElementById('algo').value;
+  const result = algo === 'greedy' ? runGreedy() : runBacktracking();
+
+  nodes.forEach(node => { node.color = result.coloring[node.id] ?? null; });
+  const totalColors = new Set(Object.values(result.coloring)).size;
+  document.getElementById('sChrom').textContent = totalColors || 'N/A';
+
+  stepQueue = result.steps;
+  finalColoring = result.coloring;
+
+  updateStats();
+  draw();
+}
+
+function nextStep() {
+  if (!nodes.length) return;
+
+  if (stepQueue.length === 0) {
+    stepIndex = 0;
+    document.getElementById('sChrom').textContent = 'N/A';
+    const algo = document.getElementById('algo').value;
+    const result = algo === 'greedy' ? runGreedy() : runBacktracking();
+    stepQueue = result.steps;
+    finalColoring = result.coloring;
+  }
+
+  if (stepIndex === 0) {
+    nodes.forEach(n => n.color = null);
+    document.getElementById('sChrom').textContent = 'N/A';
+    document.getElementById('stepInfo').style.display = 'none';
+    document.getElementById('stepCounter').style.display = 'none';
+  }
+
+  if (stepIndex >= stepQueue.length) {
+    const totalColors = new Set(Object.values(finalColoring)).size;
+    document.getElementById('sChrom').textContent = totalColors || 'N/A';
+    document.getElementById('stepInfo').textContent = `Done! This graph needs ${totalColors} colors (chromatic number = ${totalColors})`;
+    document.getElementById('stepInfo').style.display = 'block';
+    document.getElementById('stepCounter').style.display = 'none';
+    stepQueue = [];
+    stepIndex = 0;
+    return;
+  }
+
+  const step = stepQueue[stepIndex++];
+
+  if (step.clearAll) {
+    nodes.forEach(n => n.color = null);
+  } else if (step.nodeId !== undefined) {
+    const node = getNode(step.nodeId);
+    if (node) node.color = step.color;
+  }
+
+  document.getElementById('stepInfo').textContent = step.msg;
+  document.getElementById('stepInfo').style.display = 'block';
+  document.getElementById('stepCounter').textContent = `Step ${stepIndex} / ${stepQueue.length}`;
+  document.getElementById('stepCounter').style.display = 'block';
+  draw();
+}
+
+function loadPreset(name) {
+  if (!name) return;
+  clearAll();
+
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+
+  function placeRing(count, radius, offsetX, offsetY, startAngle = 0) {
+    return Array.from({ length: count }, (_, i) => {
+      const angle = (2 * Math.PI * i / count) - Math.PI / 2 + startAngle;
+      const id = nodeIdCounter++;
+      nodes.push({ id, color: null, x: offsetX + radius * Math.cos(angle), y: offsetY + radius * Math.sin(angle), label: String.fromCharCode(65 + i) });
+      return id;
+    });
+  }
+
+  function addEdge(a, b) { edges.push({ a, b }); }
+
+  if (name === 'triangle') {
+    const ids = placeRing(3, 130, cx, cy);
+    addEdge(ids[0], ids[1]); addEdge(ids[1], ids[2]); addEdge(ids[2], ids[0]);
+  }
+
+  if (name === 'square') {
+    const ids = placeRing(4, 130, cx, cy);
+    addEdge(ids[0], ids[1]); addEdge(ids[1], ids[2]);
+    addEdge(ids[2], ids[3]); addEdge(ids[3], ids[0]);
+  }
+
+  if (name === 'k4') {
+    const ids = placeRing(4, 140, cx, cy);
+    for (let i = 0; i < 4; i++)
+      for (let j = i + 1; j < 4; j++) addEdge(ids[i], ids[j]);
+  }
+
+  if (name === 'star') {
+    const centerId = nodeIdCounter++;
+    nodes.push({ id: centerId, x: cx, y: cy, color: null, label: 'A' });
+    const labels = ['B', 'C', 'D', 'E'];
+    [0, 90, 180, 270].forEach((deg, i) => {
+      const rad = deg * Math.PI / 180;
+      const id = nodeIdCounter++;
+      nodes.push({ id, x: cx + 140 * Math.cos(rad), y: cy + 140 * Math.sin(rad), color: null, label: labels[i] });
+      addEdge(centerId, id);
+    });
+  }
+
+  document.getElementById('preset').value = name;
+  updateStats();
+  draw();
+  colorGraph();
+}
+
+function clearAll() {
+  nodes = []; edges = []; nodeIdCounter = 0;
+  selectedNode = null; draggingNode = null;
+  stepQueue = []; stepIndex = 0; finalColoring = {};
+  document.getElementById('sChrom').textContent = 'N/A';
+  document.getElementById('preset').value = '';
+  document.getElementById('stepInfo').style.display = 'none';
+  document.getElementById('stepCounter').style.display = 'none';
+  updateStats();
+  draw();
+}
+
+function updateAlgoInfo() {
+  const info = {
+    greedy: 'Greedy: Start with the most connected node. Give each node the smallest color not used by any of its neighbors. Fast, but may not always use the least number of colors.',
+    bt: 'Backtracking: First try coloring with 1 color, then 2, then 3, and so on. If a conflict occurs, go back and try a different color. Slower, but always finds the minimum number of colors needed.'
+  };
+  document.getElementById('algoInfo').textContent = info[document.getElementById('algo').value];
+}
+
+updateAlgoInfo();
+updateStats();
+setMode('node');
+setTimeout(() => { loadPreset('triangle'); }, 100);
+
+</script>
+</body>
+</html>
